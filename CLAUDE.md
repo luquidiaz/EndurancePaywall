@@ -22,7 +22,8 @@ depende de Firebase: los eventos salen por `PaywallAnalytics`.
 - Nada que SwiftUI evalúe al renderizar puede ser un closure tipado `@MainActor`,
   ni `MainActor.assumeIsolated`, ni `Binding(get:set:)` armado a mano (crash del
   async renderer de iOS 26, ver EnduranceOnboarding 0.1.0).
-- Un string nuevo va en los 8 idiomas de `Resources/Localizable.xcstrings`.
+- Un string nuevo va en los 14 idiomas de `Resources/Localizable.xcstrings`
+  (en, es, pt-BR, de, fr, it, ja, ko, zh-Hans, zh-Hant, nl, sv, pl, tr; ver `LocalizationTests`).
 - Nombres de eventos: no se cambian sin migrar el análisis de todas las apps.
 
 ## Cómo validar

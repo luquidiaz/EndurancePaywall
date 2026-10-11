@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.1.1 - 2026-10-11
+
+- Strings in six more languages: zh-Hans, zh-Hant, nl, sv, pl, tr (informal register). The fallback close button and "unavailable" screen no longer fall back to English there. No API changes.
+
 ## 0.1.0 - 2026-10-11
 
 First release.
