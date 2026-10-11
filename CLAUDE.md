@@ -1,0 +1,41 @@
+# EndurancePaywall
+
+Aplica el `CLAUDE.md` de la raíz del workspace (proceso, git, convenciones).
+
+## Qué es
+
+Paquete Swift con **el** paywall de todas las apps del portfolio
+(`docs/paywall-standard.md`, sección 8). iOS 17+, swift-tools 6.0, Swift 6
+estricto. Única dependencia: RevenueCat `purchases-ios` (from 5.94.0). No
+depende de Firebase: los eventos salen por `PaywallAnalytics`.
+
+## API
+
+- `EndurancePaywall.configure(...)` / `EndurancePaywallConfiguration`.
+- `.endurancePaywall(isPresented:source:style:onDismiss:)`, `(item:)`, variante con `unconfigured:`.
+- `EndurancePaywallView` (RevenueCatUI + X de respaldo), `PremiumState` (`EndurancePaywall.premium`).
+- `PaywallOfferingResolver` (placement → current → fallback), `PaywallSession` (eventos, interno).
+- `PaywallTrigger` / `PaywallTriggerPolicy`, `PaywallSource`.
+
+## Reglas
+
+- Nada que SwiftUI evalúe al renderizar puede ser un closure tipado `@MainActor`,
+  ni `MainActor.assumeIsolated`, ni `Binding(get:set:)` armado a mano (crash del
+  async renderer de iOS 26, ver EnduranceOnboarding 0.1.0).
+- Un string nuevo va en los 8 idiomas de `Resources/Localizable.xcstrings`.
+- Nombres de eventos: no se cambian sin migrar el análisis de todas las apps.
+
+## Cómo validar
+
+```sh
+xcodebuild -scheme EndurancePaywall -destination 'generic/platform=iOS Simulator' build
+xcodebuild test -scheme EndurancePaywall -destination 'platform=iOS Simulator,id=<udid>'
+```
+
+Usar un simulador propio (`xcrun simctl create`), no los de otros agentes.
+
+## Publicar versiones
+
+Igual que EnduranceOnboarding: semver, tag anotado sobre `main` después de build y
+tests, tags inmutables, CHANGELOG actualizado. Antes de cambiar la API pública,
+buscar quién la usa (`grep -rl EndurancePaywall ../*/*.xcodeproj`) y avisar.
