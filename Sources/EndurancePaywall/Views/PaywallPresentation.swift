@@ -1,11 +1,18 @@
 import SwiftUI
 
-/// How the paywall is presented.
+/// How the paywall is presented. Portfolio standard (Lucas, 2026-10-12):
+/// always `.fullScreen`, the default of every `.endurancePaywall` modifier.
 public enum PaywallPresentationStyle: Sendable {
-    /// Sheet (swipe down closes it, logged as `reason: swipe`).
+    /// Discouraged: kept only for special cases. It looks like a sheet but
+    /// can't be swiped down either (the paywall disables interactive
+    /// dismissal); only the X closes it.
     case sheet
-    /// Full screen (e.g. end of onboarding): only the X closes it.
+    /// Full page (`fullScreenCover`). The standard: only the package's X
+    /// (fades in after `closeButtonDelay`) or a purchase closes it.
     case fullScreen
+
+    /// The style every modifier uses when none is passed.
+    public static let standard: PaywallPresentationStyle = .fullScreen
 }
 
 /// A paywall to present for a `source`. Use with `.endurancePaywall(item:)`
@@ -21,12 +28,12 @@ public struct PaywallRequest: Identifiable, Hashable, Sendable {
 }
 
 extension View {
-    /// Presents the standard paywall.
-    /// `onDismiss` runs after it closes for any reason (X, swipe, purchase).
+    /// Presents the standard paywall, full screen by default.
+    /// `onDismiss` runs after it closes for any reason (X, purchase, the app).
     public func endurancePaywall(
         isPresented: Binding<Bool>,
         source: String,
-        style: PaywallPresentationStyle = .sheet,
+        style: PaywallPresentationStyle = .standard,
         onDismiss: (() -> Void)? = nil
     ) -> some View {
         modifier(PaywallPresentationModifier<Never>(
@@ -35,11 +42,12 @@ extension View {
     }
 
     /// Same, with the view to show while RevenueCat isn't configured
-    /// (e.g. a DEBUG mock paywall; it must have its own way out).
+    /// (e.g. a DEBUG mock paywall). The package draws its delayed X over it,
+    /// so the placeholder must not draw its own.
     public func endurancePaywall<Placeholder: View>(
         isPresented: Binding<Bool>,
         source: String,
-        style: PaywallPresentationStyle = .sheet,
+        style: PaywallPresentationStyle = .standard,
         unconfigured: Placeholder,
         onDismiss: (() -> Void)? = nil
     ) -> some View {
@@ -51,7 +59,7 @@ extension View {
     /// Presents the paywall for a request (its `source`), then sets it to `nil`.
     public func endurancePaywall(
         item: Binding<PaywallRequest?>,
-        style: PaywallPresentationStyle = .sheet,
+        style: PaywallPresentationStyle = .standard,
         onDismiss: (() -> Void)? = nil
     ) -> some View {
         modifier(PaywallItemPresentationModifier(item: item, style: style, onDismiss: onDismiss))

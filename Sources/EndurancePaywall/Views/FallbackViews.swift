@@ -1,9 +1,13 @@
 import SwiftUI
 
-/// The X drawn by the package while the paywall loads, if loading fails,
-/// or when the dashboard paywall declares it has none
-/// (`has_close_button: false` in the offering metadata). Never a dead end.
-struct PaywallFallbackCloseButton: View {
+/// The paywall's X. Owned by the package and drawn over every phase
+/// (loading, failure, "unavailable", placeholder, dashboard paywall), so the
+/// delay is the same in every app. While hidden it takes no taps and is
+/// hidden from VoiceOver; `EndurancePaywallView` fades it in after
+/// `closeButtonDelay`. 44 pt hit area, inside the safe area, adapts to
+/// light and dark (material background, secondary glyph).
+struct PaywallCloseButton: View {
+    let isVisible: Bool
     let action: () -> Void
 
     var body: some View {
@@ -21,6 +25,9 @@ struct PaywallFallbackCloseButton: View {
         .accessibilityIdentifier("paywall.close")
         .padding(.top, 4)
         .padding(.trailing, 8)
+        .opacity(isVisible ? 1 : 0)
+        .allowsHitTesting(isVisible)
+        .accessibilityHidden(!isVisible)
     }
 }
 

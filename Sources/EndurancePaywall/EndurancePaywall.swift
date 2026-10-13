@@ -20,6 +20,13 @@ public struct EndurancePaywallConfiguration: Sendable {
     public var analytics: any PaywallAnalytics
     /// `Purchases.logLevel = .debug` when the package configures RevenueCat.
     public var verboseLogs: Bool
+    /// Seconds the paywall's X stays hidden before it fades in (portfolio
+    /// standard: 8). Applies to every phase (loading, failure, "unavailable",
+    /// placeholder and the dashboard paywall). Lower it in UI tests if needed.
+    public var closeButtonDelay: TimeInterval
+
+    /// Portfolio standard for `closeButtonDelay` (Lucas, 2026-10-12).
+    public static let defaultCloseButtonDelay: TimeInterval = 8
 
     public init(
         apiKey: String?,
@@ -29,7 +36,8 @@ public struct EndurancePaywallConfiguration: Sendable {
         defaultPlacement: String? = nil,
         premiumCache: PremiumCache? = PremiumCache(),
         analytics: any PaywallAnalytics = NoPaywallAnalytics(),
-        verboseLogs: Bool = false
+        verboseLogs: Bool = false,
+        closeButtonDelay: TimeInterval = EndurancePaywallConfiguration.defaultCloseButtonDelay
     ) {
         self.apiKey = apiKey
         self.entitlementId = entitlementId
@@ -39,6 +47,7 @@ public struct EndurancePaywallConfiguration: Sendable {
         self.premiumCache = premiumCache
         self.analytics = analytics
         self.verboseLogs = verboseLogs
+        self.closeButtonDelay = closeButtonDelay
     }
 
     /// Placement for a source, if any.
@@ -82,6 +91,7 @@ public enum EndurancePaywall {
         placements: [String: String] = [:],
         premiumCache: PremiumCache? = PremiumCache(),
         verboseLogs: Bool = false,
+        closeButtonDelay: TimeInterval = EndurancePaywallConfiguration.defaultCloseButtonDelay,
         analytics: @escaping @Sendable (PaywallEvent) -> Void
     ) {
         configure(EndurancePaywallConfiguration(
@@ -91,7 +101,8 @@ public enum EndurancePaywall {
             placements: placements,
             premiumCache: premiumCache,
             analytics: ClosurePaywallAnalytics(analytics),
-            verboseLogs: verboseLogs
+            verboseLogs: verboseLogs,
+            closeButtonDelay: closeButtonDelay
         ))
     }
 }

@@ -2,7 +2,7 @@
 
 One paywall for every Endurance Apptitude app: presented, resolved and measured the same way everywhere, so a change proven in one app can be carried to the rest.
 
-- RevenueCatUI `PaywallView` (the paywall is designed in the RevenueCat dashboard) with a fallback X while it loads or if it fails. Never a dead end.
+- RevenueCatUI `PaywallView` (the paywall is designed in the RevenueCat dashboard), always **full page** (no swipe-to-dismiss), with the package's own X that fades in after 8 seconds. Never a dead end.
 - Offering resolution: placement mapped from the `source` → **current** offering (so Experiments and Targeting work) → a fallback identifier.
 - The same events in every app, with `source`, `offering_id` and `package_id`, through an injectable analytics protocol. The package does not depend on Firebase.
 - Shared premium status (`@Observable` and `ObservableObject`), cached offline and optionally mirrored to an App Group for widgets.
@@ -26,7 +26,8 @@ EndurancePaywall.configure(
     entitlementId: "premium",
     fallbackOfferingId: "v2_annual_default",     // only used if there is no current offering
     placements: ["onboarding": "onboarding"],    // optional: source → RevenueCat placement
-    premiumCache: PremiumCache(suiteName: "group.com.example.app") // App Group for widgets
+    premiumCache: PremiumCache(suiteName: "group.com.example.app"), // App Group for widgets
+    closeButtonDelay: 8                          // optional, 8 is the standard
 ) { event in
     // Nonisolated and @Sendable: may run off the main thread.
     Analytics.logEvent(event.name.rawValue, parameters: event.parameters)
@@ -37,10 +38,12 @@ Or build an `EndurancePaywallConfiguration` and pass your own `PaywallAnalytics`
 
 ### 2. Present it
 
+Every modifier presents the paywall **full screen** (`fullScreenCover`) by default and the paywall disables interactive dismissal: only the X or a purchase closes it. `style: .sheet` still exists but is discouraged (portfolio standard, 2026-10-12).
+
 ```swift
 // End of onboarding
 OnboardingView(flow: flow) { _ in showPaywall = true }
-    .endurancePaywall(isPresented: $showPaywall, source: PaywallSource.onboarding, style: .fullScreen) {
+    .endurancePaywall(isPresented: $showPaywall, source: PaywallSource.onboarding) {
         hasCompletedOnboarding = true
     }
 
@@ -52,7 +55,7 @@ Button("Export") { if premium.isPremium { export() } else { showPaywall = true }
 .endurancePaywall(item: $paywallRequest)   // paywallRequest = PaywallRequest(source: "widget")
 ```
 
-While RevenueCat isn't configured (no API key yet) the paywall shows a neutral "unavailable" screen. Pass `unconfigured:` to show your own view instead, for example a DEBUG mock:
+While RevenueCat isn't configured (no API key yet) the paywall shows a neutral "unavailable" screen. Pass `unconfigured:` to show your own view instead, for example a DEBUG mock. The package draws its X over it too, so the mock must not have its own:
 
 ```swift
 .endurancePaywall(isPresented: $show, source: "settings", unconfigured: MockPaywallView())
@@ -96,7 +99,7 @@ The onboarding and locked features always show the paywall; only the automatic o
 | Event | When | Extra parameters |
 |-------|------|------------------|
 | `paywall_shown` | Offering resolved (or load failed / RevenueCat not configured) | `paywall_revision` (v1 paywalls) |
-| `paywall_closed` | The paywall left the screen | `reason`: `close`, `swipe`, `purchased`, `restored` |
+| `paywall_closed` | The paywall left the screen | `reason`: `close`, `swipe` (closed without the X or a purchase, e.g. by the app), `purchased`, `restored` |
 | `purchase_started` | A package was tapped | `package_id`, `product_id` |
 | `purchase_completed` | Purchase finished | `package_id`, `product_id`, `is_premium` |
 | `purchase_cancelled` | User cancelled the App Store sheet | `package_id`, `product_id` |
@@ -108,7 +111,13 @@ All events carry `source` and, when known, `offering_id`.
 
 ## The X
 
-Standard paywalls (dashboard) bring their own X. The package draws one while loading, after a failure, on the "unavailable" screen, and on a loaded paywall whose offering metadata has `has_close_button: false`. Offerings without a dashboard paywall use RevenueCat's default paywall with its close button.
+The package owns the X, in every phase: loading, failure, the "unavailable" screen, the `unconfigured:` placeholder and the dashboard paywall. Top right, 44 pt hit area, inside the safe area, light and dark, VoiceOver label "Close" in the 14 languages.
+
+- Hidden (no taps, hidden from VoiceOver) for `closeButtonDelay` seconds, **8 by default**, then a 0.35 s fade-in. The delay starts when the paywall appears and doesn't restart when the offering finishes loading.
+- Tapping it logs `paywall_closed` with `reason: close` and dismisses.
+- Change the delay in the configuration (`closeButtonDelay:`), e.g. `0` in UI tests.
+
+**Dashboard paywalls must not have a close button.** The package can't delay RevenueCat's own close component, and the user would see two X. Remove it from the paywall in the RevenueCat dashboard (Paywalls v2). The package doesn't detect it; if one is left, it still works (it closes immediately, logged as `close`). Offerings without a dashboard paywall use RevenueCat's default paywall with its close button turned off.
 
 ## Concurrency
 
@@ -120,5 +129,7 @@ Nothing SwiftUI may evaluate while rendering is a `@MainActor`-typed closure, no
 xcodebuild -scheme EndurancePaywall -destination 'generic/platform=iOS Simulator' build
 xcodebuild test -scheme EndurancePaywall -destination 'platform=iOS Simulator,name=<your simulator>'
 ```
+
+From the workspace root: `SIM_UDID=<udid> ./scripts/build.sh EndurancePaywall` (build + tests).
 
 `swift build` doesn't work: the package is iOS only.

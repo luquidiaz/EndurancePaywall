@@ -45,10 +45,4 @@ struct ResolverTests {
         #expect(configuration.placement(for: "export") == "feature_placement")
         #expect(EndurancePaywallConfiguration(apiKey: nil, entitlementId: "premium").placement(for: "export") == nil)
     }
-
-    @Test func closeButtonPolicyFollowsMetadata() {
-        #expect(!PaywallCloseButtonPolicy.needsFallback(metadata: [:]))
-        #expect(PaywallCloseButtonPolicy.needsFallback(metadata: ["has_close_button": false]))
-        #expect(!PaywallCloseButtonPolicy.needsFallback(metadata: ["has_close_button": true]))
-    }
 }
