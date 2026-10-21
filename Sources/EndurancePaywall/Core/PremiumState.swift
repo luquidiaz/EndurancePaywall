@@ -37,6 +37,12 @@ public final class PremiumState: ObservableObject {
     public private(set) var isConfigured = false {
         willSet { objectWillChange.send() }
     }
+    /// Free, trial or premium, as last confirmed by RevenueCat. `nil` until
+    /// RevenueCat reports (the cache only keeps `isPremium`). Ignores the
+    /// DEBUG override.
+    public private(set) var status: PremiumStatus? {
+        willSet { objectWillChange.send() }
+    }
 
     /// Called on the main actor whenever `isPremium` changes.
     @ObservationIgnored public var onChange: (@MainActor (Bool) -> Void)?
@@ -81,7 +87,17 @@ public final class PremiumState: ObservableObject {
     }
 
     public func update(with customerInfo: CustomerInfo) {
-        apply(customerInfo.entitlements[entitlementId]?.isActive == true)
+        let entitlement = customerInfo.entitlements[entitlementId]
+        let isActive = entitlement?.isActive == true
+        report(PremiumStatus(isActive: isActive, periodType: entitlement?.periodType))
+        apply(isActive)
+    }
+
+    /// Keeps `status` and sets the `premium_status` user property when it changes.
+    func report(_ newStatus: PremiumStatus) {
+        guard newStatus != status else { return }
+        status = newStatus
+        EndurancePaywall.configuration.analytics.setUserProperty(newStatus.rawValue, forName: PremiumStatus.userPropertyName)
     }
 
     /// Asks RevenueCat again (e.g. on returning to foreground).

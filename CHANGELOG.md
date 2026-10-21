@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.3.0 - 2026-10-21
+
+Link the paywall with Firebase Analytics, so funnels and retention can be split by subscription status. Additive: no call site has to change.
+
+- `firebaseAppInstanceID` in `EndurancePaywallConfiguration` and in `EndurancePaywall.configure(apiKey:...)`, plus `EndurancePaywall.setFirebaseAppInstanceID(_:)`: sets RevenueCat's `$firebaseAppInstanceId` (`Purchases.shared.attribution.setFirebaseAppInstanceID`) once `Purchases` is configured. The package still has no Firebase dependency: the app passes `Analytics.appInstanceID()`.
+- `PremiumStatus` (`free`, `trial`, `premium`) and `PremiumState.status` (`nil` until RevenueCat reports; ignores the DEBUG override).
+- `premium_status` user property: `PaywallAnalytics.setUserProperty(_:forName:)` (new requirement with a default no-op implementation), `ClosurePaywallAnalytics(_:userProperty:)` and `userProperty:` in `configure(apiKey:...)`. Set only when the status changes.
+
 ## 0.2.0 - 2026-10-12
 
 Portfolio standard (Lucas, 2026-10-12): the paywall is always a full page and the X fades in after 8 seconds. Default behavior changes; source compatible.

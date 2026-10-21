@@ -24,6 +24,11 @@ public struct EndurancePaywallConfiguration: Sendable {
     /// standard: 8). Applies to every phase (loading, failure, "unavailable",
     /// placeholder and the dashboard paywall). Lower it in UI tests if needed.
     public var closeButtonDelay: TimeInterval
+    /// Firebase Analytics `appInstanceID()`, to link RevenueCat with Firebase
+    /// (`$firebaseAppInstanceId` subscriber attribute; needed by RevenueCat's
+    /// Firebase integration). `nil` = not linked. The package doesn't import
+    /// Firebase: the app passes the id. See `EndurancePaywall.setFirebaseAppInstanceID`.
+    public var firebaseAppInstanceID: String?
 
     /// Portfolio standard for `closeButtonDelay` (Lucas, 2026-10-12).
     public static let defaultCloseButtonDelay: TimeInterval = 8
@@ -37,7 +42,8 @@ public struct EndurancePaywallConfiguration: Sendable {
         premiumCache: PremiumCache? = PremiumCache(),
         analytics: any PaywallAnalytics = NoPaywallAnalytics(),
         verboseLogs: Bool = false,
-        closeButtonDelay: TimeInterval = EndurancePaywallConfiguration.defaultCloseButtonDelay
+        closeButtonDelay: TimeInterval = EndurancePaywallConfiguration.defaultCloseButtonDelay,
+        firebaseAppInstanceID: String? = nil
     ) {
         self.apiKey = apiKey
         self.entitlementId = entitlementId
@@ -48,6 +54,7 @@ public struct EndurancePaywallConfiguration: Sendable {
         self.analytics = analytics
         self.verboseLogs = verboseLogs
         self.closeButtonDelay = closeButtonDelay
+        self.firebaseAppInstanceID = firebaseAppInstanceID
     }
 
     /// Placement for a source, if any.
@@ -79,11 +86,29 @@ public enum EndurancePaywall {
             if configuration.verboseLogs { Purchases.logLevel = .debug }
             Purchases.configure(withAPIKey: apiKey)
         }
+        linkFirebaseAppInstanceID()
         premium.startListening()
     }
 
-    /// Same as `configure(_:)` with analytics from a closure. The closure is
-    /// `@Sendable` and nonisolated: it may run off the main thread.
+    /// Links RevenueCat with Firebase Analytics: sets the `$firebaseAppInstanceId`
+    /// subscriber attribute, so RevenueCat's Firebase integration sends trials,
+    /// conversions and renewals to the same GA4 user. Pass
+    /// `Analytics.appInstanceID()`. Safe to call before RevenueCat is configured:
+    /// the id is kept and applied on `configure` (call it again if the app
+    /// configures `Purchases` itself later).
+    public static func setFirebaseAppInstanceID(_ id: String?) {
+        configuration.firebaseAppInstanceID = id
+        linkFirebaseAppInstanceID()
+    }
+
+    private static func linkFirebaseAppInstanceID() {
+        guard Purchases.isConfigured, let id = configuration.firebaseAppInstanceID, !id.isEmpty else { return }
+        Purchases.shared.attribution.setFirebaseAppInstanceID(id)
+    }
+
+    /// Same as `configure(_:)` with analytics from a closure. The closures are
+    /// `@Sendable` and nonisolated: they may run off the main thread.
+    /// `userProperty` receives `premium_status` (see `PremiumStatus`).
     public static func configure(
         apiKey: String?,
         entitlementId: String,
@@ -92,6 +117,8 @@ public enum EndurancePaywall {
         premiumCache: PremiumCache? = PremiumCache(),
         verboseLogs: Bool = false,
         closeButtonDelay: TimeInterval = EndurancePaywallConfiguration.defaultCloseButtonDelay,
+        firebaseAppInstanceID: String? = nil,
+        userProperty: (@Sendable (_ value: String?, _ name: String) -> Void)? = nil,
         analytics: @escaping @Sendable (PaywallEvent) -> Void
     ) {
         configure(EndurancePaywallConfiguration(
@@ -100,9 +127,10 @@ public enum EndurancePaywall {
             fallbackOfferingId: fallbackOfferingId,
             placements: placements,
             premiumCache: premiumCache,
-            analytics: ClosurePaywallAnalytics(analytics),
+            analytics: ClosurePaywallAnalytics(analytics, userProperty: userProperty),
             verboseLogs: verboseLogs,
-            closeButtonDelay: closeButtonDelay
+            closeButtonDelay: closeButtonDelay,
+            firebaseAppInstanceID: firebaseAppInstanceID
         ))
     }
 }

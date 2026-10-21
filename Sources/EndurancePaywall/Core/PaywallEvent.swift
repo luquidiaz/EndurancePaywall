@@ -79,18 +79,36 @@ public struct PaywallEvent: Sendable, Equatable {
 /// an implementation must not assume the main actor.
 public protocol PaywallAnalytics: Sendable {
     func track(_ event: PaywallEvent)
+    /// User property set by the package (today only `premium_status`, see
+    /// `PremiumStatus`). Map it to `Analytics.setUserProperty(value, forName: name)`.
+    /// Optional: the default implementation drops it. Nonisolated, like `track`.
+    func setUserProperty(_ value: String?, forName name: String)
 }
 
-/// Analytics from a closure: `.init { event in Analytics.logEvent(event.name.rawValue, parameters: event.parameters) }`.
+extension PaywallAnalytics {
+    public func setUserProperty(_ value: String?, forName name: String) {}
+}
+
+/// Analytics from closures: `.init { event in Analytics.logEvent(event.name.rawValue, parameters: event.parameters) }`,
+/// plus `userProperty: { value, name in Analytics.setUserProperty(value, forName: name) }`.
 public struct ClosurePaywallAnalytics: PaywallAnalytics {
     private let handler: @Sendable (PaywallEvent) -> Void
+    private let userPropertyHandler: (@Sendable (String?, String) -> Void)?
 
-    public init(_ handler: @escaping @Sendable (PaywallEvent) -> Void) {
+    public init(
+        _ handler: @escaping @Sendable (PaywallEvent) -> Void,
+        userProperty: (@Sendable (_ value: String?, _ name: String) -> Void)? = nil
+    ) {
         self.handler = handler
+        self.userPropertyHandler = userProperty
     }
 
     public func track(_ event: PaywallEvent) {
         handler(event)
+    }
+
+    public func setUserProperty(_ value: String?, forName name: String) {
+        userPropertyHandler?(value, name)
     }
 }
 

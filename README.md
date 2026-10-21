@@ -27,14 +27,24 @@ EndurancePaywall.configure(
     fallbackOfferingId: "v2_annual_default",     // only used if there is no current offering
     placements: ["onboarding": "onboarding"],    // optional: source → RevenueCat placement
     premiumCache: PremiumCache(suiteName: "group.com.example.app"), // App Group for widgets
-    closeButtonDelay: 8                          // optional, 8 is the standard
+    closeButtonDelay: 8,                         // optional, 8 is the standard
+    firebaseAppInstanceID: Analytics.appInstanceID(), // links RevenueCat ↔ Firebase (0.3.0)
+    userProperty: { value, name in Analytics.setUserProperty(value, forName: name) } // premium_status (0.3.0)
 ) { event in
     // Nonisolated and @Sendable: may run off the main thread.
     Analytics.logEvent(event.name.rawValue, parameters: event.parameters)
 }
 ```
 
-Or build an `EndurancePaywallConfiguration` and pass your own `PaywallAnalytics` implementation.
+Or build an `EndurancePaywallConfiguration` and pass your own `PaywallAnalytics` implementation (`setUserProperty(_:forName:)` is optional).
+
+Configure Firebase before the paywall, so `Analytics.appInstanceID()` has a value.
+
+### Link with Firebase (0.3.0)
+
+- `firebaseAppInstanceID` (or `EndurancePaywall.setFirebaseAppInstanceID(_:)` later) sets RevenueCat's `$firebaseAppInstanceId` attribute. With the Firebase integration turned on in the RevenueCat dashboard, trials, conversions, renewals and cancellations reach the same GA4 user as the app events. If the app configures `Purchases` itself after `configure`, call `setFirebaseAppInstanceID` again.
+- `userProperty` receives the `premium_status` user property (`free`, `trial`, `premium`; `PremiumStatus`) each time RevenueCat reports a different status. `EndurancePaywall.premium.status` has the same value (`nil` until RevenueCat answers).
+- The package still doesn't import Firebase. Standard: `docs/specs/analytics-estandar.md` in the workspace.
 
 ### 2. Present it
 
